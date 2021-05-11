@@ -10,12 +10,18 @@
 /* ADC Definitions */
 extern uint16_t vt_adc_id_sensor_1;
 extern uint16_t vt_adc_id_sensor_2;
+extern uint16_t vt_adc_id_sensor_3;
+extern uint16_t vt_adc_id_sensor_4;
 
 extern ADC_HandleTypeDef vt_adc_controller_sensor_1;
 extern ADC_HandleTypeDef vt_adc_controller_sensor_2;
+extern ADC_HandleTypeDef vt_adc_controller_sensor_3;
+extern ADC_HandleTypeDef vt_adc_controller_sensor_4;
 
 extern uint32_t vt_adc_channel_sensor_1;
 extern uint32_t vt_adc_channel_sensor_2;
+extern uint32_t vt_adc_channel_sensor_3;
+extern uint32_t vt_adc_channel_sensor_4;
 
 /* GPIO Definitions */
 extern uint16_t vt_gpio_id_sensor_1;

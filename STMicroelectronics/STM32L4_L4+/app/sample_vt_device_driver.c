@@ -12,12 +12,19 @@ TIM_HandleTypeDef vt_tick_timer;
 /* ADC Definitions */
 uint16_t vt_adc_id_sensor_1 = SAMPLE_INTERNAL_ADC_TYPE_ID;
 uint16_t vt_adc_id_sensor_2 = SAMPLE_INTERNAL_ADC_TYPE_ID;
+uint16_t vt_adc_id_sensor_3 = SAMPLE_INTERNAL_ADC_TYPE_ID;
+uint16_t vt_adc_id_sensor_4 = SAMPLE_INTERNAL_ADC_TYPE_ID;
+
 
 ADC_HandleTypeDef vt_adc_controller_sensor_1 = { .Instance = ADC1};
 ADC_HandleTypeDef vt_adc_controller_sensor_2 = { .Instance = ADC1};
+ADC_HandleTypeDef vt_adc_controller_sensor_3 = { .Instance = ADC1};
+ADC_HandleTypeDef vt_adc_controller_sensor_4 = { .Instance = ADC1};
 
 uint32_t vt_adc_channel_sensor_1 = ADC_CHANNEL_1;
 uint32_t vt_adc_channel_sensor_2 = ADC_CHANNEL_2;
+uint32_t vt_adc_channel_sensor_3 = ADC_CHANNEL_3;
+uint32_t vt_adc_channel_sensor_4 = ADC_CHANNEL_4;
 
 /* GPIO Definitions */
 uint16_t vt_gpio_id_sensor_1 = SAMPLE_INTERNAL_GPIO_TYPE_ID;

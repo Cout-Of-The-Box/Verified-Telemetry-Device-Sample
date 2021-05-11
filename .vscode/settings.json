@@ -4,6 +4,9 @@
         "vt_fc.h": "c",
         "vt_fc_read.h": "c",
         "nx_vt_middleware_helper.h": "c",
-        "nx_vt_fallcurve_component.h": "c"
+        "nx_vt_fallcurve_component.h": "c",
+        "vt_fc_database.h": "c",
+        "vt_cs_database.h": "c",
+        "vt_fc_signature.h": "c"
     }
 }

@@ -11,10 +11,16 @@ static NX_VT_OBJECT sample_signature_sensor_1;
 
 static NX_VT_OBJECT sample_signature_sensor_2;
 
+static NX_VT_OBJECT sample_signature_sensor_3;
+
+static NX_VT_OBJECT sample_signature_sensor_4;
+
 static VT_DEVICE_DRIVER sample_device_driver;
 
 static VT_SENSOR_HANDLE sample_handle_sensor_1;
 static VT_SENSOR_HANDLE sample_handle_sensor_2;
+static VT_SENSOR_HANDLE sample_handle_sensor_3;
+static VT_SENSOR_HANDLE sample_handle_sensor_4;
 
 void* sample_nx_verified_telemetry_user_init()
 {
@@ -74,6 +80,36 @@ void* sample_nx_verified_telemetry_user_init()
     {
         printf("Failed to initialize VT for soilMoistureExternal2 telemetry: error code = 0x%08x\r\n", status);
     }
-    
+
+    sample_handle_sensor_3.adc_id = vt_adc_id_sensor_1;
+    sample_handle_sensor_3.adc_controller = (void*)&vt_adc_controller_sensor_1;
+    sample_handle_sensor_3.adc_channel = (void*)&vt_adc_channel_sensor_1;
+
+    if ((status = nx_vt_signature_init((void*)(&verified_telemetry_DB),
+        &sample_signature_sensor_3,
+        (UCHAR*)"pmSensor1",
+        VT_SIGNATURE_TYPE_CURRENTSENSE,
+        (UCHAR*)"pmSensor1_pm2_5,pmSensor1_pm10_0",
+        true,
+        &sample_handle_sensor_3)))
+    {
+        printf("Failed to initialize VT for pmSensor1_pm2_5,pmSensor1_pm10_0 telemetry: error code = 0x%08x\r\n", status);
+    }
+
+    sample_handle_sensor_4.adc_id = vt_adc_id_sensor_2;
+    sample_handle_sensor_4.adc_controller = (void*)&vt_adc_controller_sensor_2;
+    sample_handle_sensor_4.adc_channel = (void*)&vt_adc_channel_sensor_2;
+
+    if ((status = nx_vt_signature_init((void*)(&verified_telemetry_DB),
+        &sample_signature_sensor_4,
+        (UCHAR*)"pmSensor2",
+        VT_SIGNATURE_TYPE_CURRENTSENSE,
+        (UCHAR*)"pmSensor2_pm2_5,pmSensor2_pm10_0",
+        true,
+        &sample_handle_sensor_4)))
+    {
+        printf("Failed to initialize VT for pmSensor2_pm2_5,pmSensor2_pm10_0 telemetry: error code = 0x%08x\r\n", status);
+    }
+
     return (void*)(&verified_telemetry_DB);
 }
