@@ -14,9 +14,16 @@
 #define SAMPLE_COMMAND_SUCCESS_STATUS (200)
 #define SAMPLE_COMMAND_ERROR_STATUS   (500)
 
+#define DS18B20_1_PORT GPIOA
+#define DS18B20_1_PIN  GPIO_PIN_15
+#define DS18B20_2_PORT GPIOB
+#define DS18B20_2_PIN  GPIO_PIN_2
+
 /* Telemetry key */
 static const CHAR telemetry_name_soilMoistureExternal1Raw[] = "soilMoistureExternal1";
 static const CHAR telemetry_name_soilMoistureExternal2Raw[] = "soilMoistureExternal2";
+static const CHAR telemetry_name_temperatureExternal1Raw[]  = "temperatureExternal1";
+static const CHAR telemetry_name_temperatureExternal2Raw[]  = "temperatureExternal2";
 static const CHAR telemetry_name_sensorTemperature[]        = "temperature";
 static const CHAR telemetry_name_sensorPressure[]           = "pressure";
 static const CHAR telemetry_name_sensorHumidity[]           = "humidityPercentage";
@@ -31,6 +38,18 @@ static const CHAR reported_led_state[] = "ledState";
 
 static UCHAR scratch_buffer[512];
 
+// extern SPI_HandleTypeDef mcp3204;
+// uint8_t pTxData[3];
+// uint8_t pRxData[3];
+// uint16_t* adc_read_buffer_local;
+// uint16_t buffer_length_local;
+// uint16_t adc_buffer_count = 0;
+// uint16_t value[128]       = {0};
+// bool read_done            = false;
+// typedef void (*VT_ADC_BUFFER_READ_CALLBACK_FUNC)(void);
+// VT_ADC_BUFFER_READ_CALLBACK_FUNC half_complete_callback;
+// VT_ADC_BUFFER_READ_CALLBACK_FUNC full_complete_callback;
+
 static void set_led_state_action(bool level)
 {
     if (level)
@@ -43,6 +62,151 @@ static void set_led_state_action(bool level)
         printf("LED is turned OFF\r\n");
         BSP_LED_Off(LED_GREEN);
     }
+}
+
+static void set_pin_output(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    GPIO_InitStruct.Pin   = GPIO_Pin;
+    GPIO_InitStruct.Mode  = GPIO_MODE_OUTPUT_PP;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOx, &GPIO_InitStruct);
+}
+
+static void set_pin_input(GPIO_TypeDef* GPIOx, uint16_t GPIO_Pin)
+{
+    GPIO_InitTypeDef GPIO_InitStruct = {0};
+
+    GPIO_InitStruct.Pin   = GPIO_Pin;
+    GPIO_InitStruct.Mode  = GPIO_MODE_INPUT;
+    GPIO_InitStruct.Pull  = GPIO_NOPULL;
+    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+    HAL_GPIO_Init(GPIOx, &GPIO_InitStruct);
+}
+
+static void delay_usec(uint32_t delay_usec)
+{
+    TIM_HandleTypeDef delay_usec_timer;
+    delay_usec_timer.Instance               = TIM6;
+    delay_usec_timer.Init.Prescaler         = (uint32_t)((SystemCoreClock / 1000000) - 1);
+    delay_usec_timer.Init.CounterMode       = TIM_COUNTERMODE_UP;
+    delay_usec_timer.Init.Period            = 65535;
+    delay_usec_timer.Init.ClockDivision     = TIM_CLOCKDIVISION_DIV1;
+    delay_usec_timer.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+    if (HAL_TIM_Base_Init(&delay_usec_timer) != HAL_OK)
+    {
+        // add error handling
+    }
+    HAL_TIM_Base_Start(&delay_usec_timer);
+    while ((__HAL_TIM_GET_COUNTER(&delay_usec_timer)) < delay_usec)
+        ;
+}
+
+static uint8_t ds18b20_start(GPIO_TypeDef* ds18b20_port, uint16_t ds18b20_pin)
+{
+    uint8_t response = 0;
+    set_pin_output(ds18b20_port, ds18b20_pin);       // set the pin as output
+    HAL_GPIO_WritePin(ds18b20_port, ds18b20_pin, 0); // pull the pin low
+    delay_usec(480);                                 // delay according to datasheet
+
+    set_pin_input(ds18b20_port, ds18b20_pin); // set the pin as input
+    delay_usec(80);                           // delay according to datasheet
+
+    if (!(HAL_GPIO_ReadPin(ds18b20_port, ds18b20_pin)))
+    {
+        response = 1; // if the pin is low i.e the presence pulse is detected
+    }
+    else
+    {
+        response = 0;
+    }
+
+    delay_usec(400); // 480 us delay totally.
+    return response;
+}
+
+static void ds18b20_write(GPIO_TypeDef* ds18b20_port, uint16_t ds18b20_pin, uint8_t data)
+{
+    set_pin_output(ds18b20_port, ds18b20_pin); // set as output
+
+    for (int i = 0; i < 8; i++)
+    {
+        if ((data & (1 << i)) != 0) // if the bit is high
+        {
+            // write 1
+            set_pin_output(ds18b20_port, ds18b20_pin);       // set as output
+            HAL_GPIO_WritePin(ds18b20_port, ds18b20_pin, 0); // pull the pin LOW
+            delay_usec(1);                                   // wait for 1 us
+
+            set_pin_input(ds18b20_port, ds18b20_pin); // set as input
+            delay_usec(50);                           // wait for 60 us
+        }
+
+        else // if the bit is low
+        {
+            // write 0
+            set_pin_output(ds18b20_port, ds18b20_pin);
+            HAL_GPIO_WritePin(ds18b20_port, ds18b20_pin, 0); // pull the pin LOW
+            delay_usec(50);                                  // wait for 60 us
+
+            set_pin_input(ds18b20_port, ds18b20_pin);
+        }
+    }
+}
+
+static uint8_t ds18b20_read(GPIO_TypeDef* ds18b20_port, uint16_t ds18b20_pin)
+{
+    uint8_t value = 0;
+    set_pin_input(ds18b20_port, ds18b20_pin);
+
+    for (int i = 0; i < 8; i++)
+    {
+        set_pin_output(ds18b20_port, ds18b20_pin); // set as output
+
+        HAL_GPIO_WritePin(ds18b20_port, ds18b20_pin, 0); // pull the data pin LOW
+        delay_usec(2);                                   // wait for 2 us
+
+        set_pin_input(ds18b20_port, ds18b20_pin);        // set as input
+        if (HAL_GPIO_ReadPin(ds18b20_port, ds18b20_pin)) // if the pin is HIGH
+        {
+            value |= 1 << i; // read = 1
+        }
+        delay_usec(60); // wait for 60 us
+    }
+    return value;
+}
+
+static float ds18b20_temperature_read(GPIO_TypeDef* ds18b20_port, uint16_t ds18b20_pin)
+{
+    uint8_t byte1 = 0;
+    uint8_t byte2 = 0;
+    float integer;
+    float decimal;
+    if (ds18b20_start(ds18b20_port, ds18b20_pin))
+    {
+        HAL_Delay(1);
+        ds18b20_write(ds18b20_port, ds18b20_pin, 0xCC); // skip ROM
+        ds18b20_write(ds18b20_port, ds18b20_pin, 0x44); // convert t
+        HAL_Delay(800);
+
+        if (ds18b20_start(ds18b20_port, ds18b20_pin))
+        {
+            HAL_Delay(1);
+            ds18b20_write(ds18b20_port, ds18b20_pin, 0xCC); // skip ROM
+            ds18b20_write(ds18b20_port, ds18b20_pin, 0xBE); // Read Scratch-pad
+
+            byte1 = ds18b20_read(ds18b20_port, ds18b20_pin);
+            byte2 = ds18b20_read(ds18b20_port, ds18b20_pin);
+
+            integer = (int8_t)((byte1 >> 4) | (byte2 << 4));
+            decimal = (float)(byte1 & 0x0F) * 0.0625f;
+
+            return (integer + decimal);
+        }
+    }
+    return (0);
 }
 
 UINT adc_read(ADC_HandleTypeDef* ADC_Controller, UINT ADC_Channel)
@@ -69,6 +233,130 @@ UINT adc_read(ADC_HandleTypeDef* ADC_Controller, UINT ADC_Channel)
 
     return value;
 }
+
+// void vt_adc_buffer_read(uint16_t adc_id,
+//     void* adc_controller,
+//     void* adc_channel,
+//     uint16_t* adc_read_buffer,
+//     uint16_t buffer_length,
+//     float sampling_frequency,
+//     void (*vt_adc_buffer_read_conv_half_cplt_callback)(),
+//     void (*vt_adc_buffer_read_conv_cplt_callback)())
+// {
+//     // /* DMA controller clock enable */
+//     // __HAL_RCC_DMA1_CLK_ENABLE();
+
+//     // /* DMA interrupt init */
+//     // /* DMA1_Stream3_IRQn interrupt configuration */
+//     // HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+//     // HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+
+//     // /* SPI2 parameter configuration*/
+//     // hspi2.Instance               = SPI2;
+//     // hspi2.Init.Mode              = SPI_MODE_MASTER;
+//     // hspi2.Init.Direction         = SPI_DIRECTION_2LINES;
+//     // hspi2.Init.DataSize          = SPI_DATASIZE_8BIT;
+//     // hspi2.Init.CLKPolarity       = SPI_POLARITY_LOW;
+//     // hspi2.Init.CLKPhase          = SPI_PHASE_1EDGE;
+//     // hspi2.Init.NSS               = SPI_NSS_SOFT;
+//     // hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+//     // hspi2.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+//     // hspi2.Init.TIMode            = SPI_TIMODE_DISABLE;
+//     // hspi2.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+//     // hspi2.Init.CRCPolynomial     = 10;
+//     // if (HAL_SPI_Init(&hspi2) != HAL_OK)
+//     // {
+//     //     // add error handling
+//     // }
+
+//     half_complete_callback = vt_adc_buffer_read_conv_half_cplt_callback;
+//     full_complete_callback = vt_adc_buffer_read_conv_cplt_callback;
+//     adc_read_buffer_local  = adc_read_buffer;
+//     buffer_length_local    = buffer_length;
+//     adc_buffer_count       = 0;
+
+//     pTxData[0] = 0b110;
+//     pTxData[1] = 0b0;
+//     pTxData[2] = 0b0;
+//     pRxData[0] = 1;
+//     pRxData[1] = 2;
+//     pRxData[2] = 3;
+//     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
+//     printf("Current Data reading start:\r\n");
+//     read_done = false;
+//     HAL_SPI_TransmitReceive_IT(&mcp3204, pTxData, pRxData, 3);
+// }
+
+// void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef* hspi)
+// {
+//     // printf("Entered Interrupt Callback: ");
+//     HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_SET);
+//     pTxData[0]                              = 0b110;
+//     pTxData[1]                              = 0b0;
+//     pTxData[2]                              = 0b0;
+//     adc_read_buffer_local[adc_buffer_count] = (uint16_t)(pRxData[1] & 0x0F) << 8 | (uint16_t)pRxData[2];
+//     // printf("%d \r\n", adc_read_buffer_local[adc_buffer_count]);
+//     // printf("%d, ", pRxData[0]);
+//     // printf("%d,", pRxData[1]);
+//     // printf("%d \r\n", pRxData[2]);
+//     // pRxData[0] = 1;
+//     // pRxData[1] = 2;
+//     // pRxData[2] = 3;
+//     adc_buffer_count++;
+//     if (adc_buffer_count == buffer_length_local / 2)
+//     {
+//         printf("\r\n");
+//         half_complete_callback();
+//     }
+//     else if (adc_buffer_count == buffer_length_local)
+//     {
+//         printf("\r\n");
+//         full_complete_callback();
+//     }
+//     if (adc_buffer_count < buffer_length_local)
+//     {
+//         HAL_GPIO_WritePin(GPIOA, GPIO_PIN_2, GPIO_PIN_RESET);
+//         HAL_SPI_TransmitReceive_IT(&mcp3204, pTxData, pRxData, 3);
+//     }
+//     else
+//     {
+//         read_done = true;
+//     }
+// }
+// void vt_adc_buffer_read_conv_half_cplt_callback()
+// {
+//     // printf("Current Data first 64:\r\n");
+//     for (uint16_t iter = 0; iter < 64; iter++)
+//     {
+//         printf("%d,", value[iter]);
+//     }
+//     // printf("\r\n");
+// }
+// void vt_adc_buffer_read_conv_cplt_callback()
+// {
+//     printf("Current Data:\r\n");
+//     for (uint16_t iter = 0; iter < 128; iter++)
+//     {
+//         printf("%d,", value[iter]);
+//     }
+//     printf("\r\n");
+// }
+
+// UINT adc_read(ADC_HandleTypeDef* ADC_Controller, UINT ADC_Channel)
+// {
+//     vt_adc_buffer_read(0,
+//         (void*)ADC_Controller,
+//         (void*)ADC_Channel,
+//         value,
+//         128,
+//         5000,
+//         &vt_adc_buffer_read_conv_half_cplt_callback,
+//         &vt_adc_buffer_read_conv_cplt_callback);
+//     while (read_done == false)
+//     {
+//     }
+//     return value[0];
+// }
 
 /* Implementation of Set LED state command of device component  */
 static UINT sample_pnp_device_set_led_state_command(SAMPLE_PNP_DEVICE_COMPONENT* handle,
@@ -111,6 +399,8 @@ UINT sample_pnp_device_init(SAMPLE_PNP_DEVICE_COMPONENT* handle,
     handle->component_name_length    = component_name_length;
     handle->soilMoistureExternal1Raw = default_sensor_reading;
     handle->soilMoistureExternal2Raw = default_sensor_reading;
+    handle->temperatureExternal1Raw  = default_sensor_reading;
+    handle->temperatureExternal2Raw  = default_sensor_reading;
     handle->sensorTemperature        = default_sensor_reading;
     handle->sensorPressure           = default_sensor_reading;
     handle->sensorHumidity           = default_sensor_reading;
@@ -136,6 +426,26 @@ UINT get_sensor_data(SAMPLE_PNP_DEVICE_COMPONENT* handle)
     UINT soilMoisture1ADCData = adc_read(&hadc1, ADC_CHANNEL_1);
     UINT soilMoisture2ADCData = adc_read(&hadc1, ADC_CHANNEL_2);
 
+    nx_vt_signature_read(handle->verified_telemetry_DB,
+        (UCHAR*)telemetry_name_temperatureExternal1Raw,
+        sizeof(telemetry_name_temperatureExternal1Raw) - 1);
+
+    float temperatureExternal1 = ds18b20_temperature_read(DS18B20_1_PORT, DS18B20_1_PIN);
+
+    nx_vt_signature_process(handle->verified_telemetry_DB,
+        (UCHAR*)telemetry_name_temperatureExternal1Raw,
+        sizeof(telemetry_name_temperatureExternal1Raw) - 1);
+
+    nx_vt_signature_read(handle->verified_telemetry_DB,
+        (UCHAR*)telemetry_name_temperatureExternal2Raw,
+        sizeof(telemetry_name_temperatureExternal2Raw) - 1);
+
+    float temperatureExternal2 = ds18b20_temperature_read(DS18B20_2_PORT, DS18B20_2_PIN);
+
+    nx_vt_signature_process(handle->verified_telemetry_DB,
+        (UCHAR*)telemetry_name_temperatureExternal2Raw,
+        sizeof(telemetry_name_temperatureExternal2Raw) - 1);
+
     float temperature = BSP_TSENSOR_ReadTemp();
     float humidity    = BSP_HSENSOR_ReadHumidity();
     float pressure    = BSP_PSENSOR_ReadPressure();
@@ -146,6 +456,8 @@ UINT get_sensor_data(SAMPLE_PNP_DEVICE_COMPONENT* handle)
 
     handle->soilMoistureExternal1Raw = soilMoisture1ADCData;
     handle->soilMoistureExternal2Raw = soilMoisture2ADCData;
+    handle->temperatureExternal1Raw  = temperatureExternal1;
+    handle->temperatureExternal2Raw  = temperatureExternal2;
 
     handle->sensorTemperature  = temperature;
     handle->sensorPressure     = pressure;
@@ -232,6 +544,16 @@ UINT sample_pnp_device_telemetry_send(SAMPLE_PNP_DEVICE_COMPONENT* handle, NX_AZ
             (UCHAR*)telemetry_name_soilMoistureExternal2Raw,
             sizeof(telemetry_name_soilMoistureExternal2Raw) - 1,
             handle->soilMoistureExternal2Raw,
+            DOUBLE_DECIMAL_PLACE_DIGITS) ||
+        nx_azure_iot_json_writer_append_property_with_double_value(&json_writer,
+            (UCHAR*)telemetry_name_temperatureExternal1Raw,
+            sizeof(telemetry_name_temperatureExternal1Raw) - 1,
+            handle->temperatureExternal1Raw,
+            DOUBLE_DECIMAL_PLACE_DIGITS) ||
+        nx_azure_iot_json_writer_append_property_with_double_value(&json_writer,
+            (UCHAR*)telemetry_name_temperatureExternal2Raw,
+            sizeof(telemetry_name_temperatureExternal2Raw) - 1,
+            handle->temperatureExternal2Raw,
             DOUBLE_DECIMAL_PLACE_DIGITS) ||
         nx_azure_iot_json_writer_append_property_with_double_value(&json_writer,
             (UCHAR*)telemetry_name_sensorTemperature,

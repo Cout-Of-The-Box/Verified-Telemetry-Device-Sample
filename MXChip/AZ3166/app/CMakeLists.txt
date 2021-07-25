@@ -8,6 +8,7 @@ set(SOURCES
     startup/startup_stm32f412rx.s
     startup/tx_initialize_low_level.S
     stm32cubef4/stm32f4xx_hal_msp.c
+    stm32cubef4/stm32f4xx_it.c
     azure_config.h
     board_init.c
     console.c

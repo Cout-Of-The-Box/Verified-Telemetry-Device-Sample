@@ -27,6 +27,18 @@ static const CHAR reported_led_state[] = "ledState";
 
 static UCHAR scratch_buffer[512];
 
+// extern SPI_HandleTypeDef hspi2;
+// uint8_t pTxData[3];
+// uint8_t pRxData[3];
+// uint16_t* adc_read_buffer_local;
+// uint16_t buffer_length_local;
+// uint16_t adc_buffer_count = 0;
+// uint16_t value[128]       = {0};
+// bool read_done            = false;
+// typedef void (*VT_ADC_BUFFER_READ_CALLBACK_FUNC)(void);
+// VT_ADC_BUFFER_READ_CALLBACK_FUNC half_complete_callback;
+// VT_ADC_BUFFER_READ_CALLBACK_FUNC full_complete_callback;
+
 static void set_led_state_action(bool level)
 {
     if (level)
@@ -61,6 +73,130 @@ UINT adc_read(ADC_HandleTypeDef* ADC_Controller, UINT ADC_Channel)
 
     return value;
 }
+
+// void vt_adc_buffer_read(uint16_t adc_id,
+//     void* adc_controller,
+//     void* adc_channel,
+//     uint16_t* adc_read_buffer,
+//     uint16_t buffer_length,
+//     float sampling_frequency,
+//     void (*vt_adc_buffer_read_conv_half_cplt_callback)(),
+//     void (*vt_adc_buffer_read_conv_cplt_callback)())
+// {
+//     // /* DMA controller clock enable */
+//     // __HAL_RCC_DMA1_CLK_ENABLE();
+
+//     // /* DMA interrupt init */
+//     // /* DMA1_Stream3_IRQn interrupt configuration */
+//     // HAL_NVIC_SetPriority(DMA1_Stream3_IRQn, 0, 0);
+//     // HAL_NVIC_EnableIRQ(DMA1_Stream3_IRQn);
+
+//     // /* SPI2 parameter configuration*/
+//     // hspi2.Instance               = SPI2;
+//     // hspi2.Init.Mode              = SPI_MODE_MASTER;
+//     // hspi2.Init.Direction         = SPI_DIRECTION_2LINES;
+//     // hspi2.Init.DataSize          = SPI_DATASIZE_8BIT;
+//     // hspi2.Init.CLKPolarity       = SPI_POLARITY_LOW;
+//     // hspi2.Init.CLKPhase          = SPI_PHASE_1EDGE;
+//     // hspi2.Init.NSS               = SPI_NSS_SOFT;
+//     // hspi2.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+//     // hspi2.Init.FirstBit          = SPI_FIRSTBIT_MSB;
+//     // hspi2.Init.TIMode            = SPI_TIMODE_DISABLE;
+//     // hspi2.Init.CRCCalculation    = SPI_CRCCALCULATION_DISABLE;
+//     // hspi2.Init.CRCPolynomial     = 10;
+//     // if (HAL_SPI_Init(&hspi2) != HAL_OK)
+//     // {
+//     //     // add error handling
+//     // }
+
+//     half_complete_callback = vt_adc_buffer_read_conv_half_cplt_callback;
+//     full_complete_callback = vt_adc_buffer_read_conv_cplt_callback;
+//     adc_read_buffer_local  = adc_read_buffer;
+//     buffer_length_local    = buffer_length;
+//     adc_buffer_count       = 0;
+
+//     pTxData[0] = 0b110;
+//     pTxData[1] = 0b0;
+//     pTxData[2] = 0b0;
+//     pRxData[0] = 1;
+//     pRxData[1] = 2;
+//     pRxData[2] = 3;
+//     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+//     printf("Current Data reading start:\r\n");
+//     read_done = false;
+//     HAL_SPI_TransmitReceive_IT(&hspi2, pTxData, pRxData, 3);
+// }
+
+// void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef* hspi)
+// {
+//     printf("Entered Interrupt Callback: ");
+//     HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_SET);
+//     pTxData[0]                              = 0b110;
+//     pTxData[1]                              = 0b0;
+//     pTxData[2]                              = 0b0;
+//     adc_read_buffer_local[adc_buffer_count] = (uint16_t)pRxData[1] << 8 | (uint16_t)pRxData[2];
+//     // printf("%d \r\n", adc_read_buffer_local[adc_buffer_count]);
+//     printf("%d, ", pRxData[0]);
+//     printf("%d,", pRxData[1]);
+//     printf("%d \r\n", pRxData[2]);
+//     pRxData[0] = 1;
+//     pRxData[1] = 2;
+//     pRxData[2] = 3;
+//     adc_buffer_count++;
+//     if (adc_buffer_count == buffer_length_local / 2)
+//     {
+//         printf("\r\n");
+//         half_complete_callback();
+//     }
+//     else if (adc_buffer_count == buffer_length_local)
+//     {
+//         printf("\r\n");
+//         full_complete_callback();
+//     }
+//     if (adc_buffer_count < buffer_length_local)
+//     {
+//         HAL_GPIO_WritePin(GPIOC, GPIO_PIN_6, GPIO_PIN_RESET);
+//         HAL_SPI_TransmitReceive_IT(&hspi2, pTxData, pRxData, 3);
+//     }
+//     else
+//     {
+//         read_done = true;
+//     }
+// }
+// void vt_adc_buffer_read_conv_half_cplt_callback()
+// {
+//     printf("Current Data first 64:\r\n");
+//     for (uint16_t iter = 0; iter < 64; iter++)
+//     {
+//         printf("%d,", value[iter]);
+//     }
+//     printf("\r\n");
+// }
+// void vt_adc_buffer_read_conv_cplt_callback()
+// {
+//     printf("Current Data last 64:\r\n");
+//     for (uint16_t iter = 64; iter < 128; iter++)
+//     {
+//         printf("%d,", value[iter]);
+//     }
+//     printf("\r\n");
+// }
+
+// UINT adc_read(ADC_HandleTypeDef* ADC_Controller, UINT ADC_Channel)
+// {
+//     vt_adc_buffer_read(0,
+//         (void*)ADC_Controller,
+//         (void*)ADC_Channel,
+//         value,
+//         128,
+//         5000,
+//         &vt_adc_buffer_read_conv_half_cplt_callback,
+//         &vt_adc_buffer_read_conv_cplt_callback);
+//     while (read_done == false)
+//     {
+//     }
+//     return value[0];
+// }
 
 /* Implementation of Set LED state command of device component  */
 static UINT sample_pnp_device_set_led_state_command(SAMPLE_PNP_DEVICE_COMPONENT* handle,

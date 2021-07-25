@@ -25,8 +25,14 @@ extern "C"
         /* Soil Moisture Sensor 1 data of this device component */
         double soilMoistureExternal1Raw;
 
-        /* Humidity Sensor (DHT22) data of this device component */
+        /* Soil Moisture Sensor 2 data of this device component */
         double soilMoistureExternal2Raw;
+
+        /* Temperature Sensor 1 data of this device component */
+        double temperatureExternal1Raw;
+
+        /* Temperature Sensor 2 data of this device component */
+        double temperatureExternal2Raw;
 
         /* Temperature Sensor data of this device component */
         double sensorTemperature;

@@ -27,6 +27,8 @@
 
 extern UART_HandleTypeDef UartHandle;
 extern ADC_HandleTypeDef hadc1;
+// extern DMA_HandleTypeDef hdma_spi2_rx;
+extern SPI_HandleTypeDef hspi2;
 
 /* Define prototypes. */
 void board_init(void);

@@ -16,8 +16,7 @@ set(NXD_ENABLE_FILE_SERVERS OFF CACHE BOOL "Disable fileX dependency by netxduo"
 # Azure Security Center
 set(NX_AZURE_DISABLE_IOT_SECURITY_MODULE ON CACHE BOOL "Security Center")
 
-# Select Hardware for Verified Telemetry
-set(VT_DEVICE "STM_BL475EIOT01A")
+set(VT_MIDDLEWARE_RTOS "AZURE_RTOS" CACHE STRING "Set VT Middleware to Azure RTOS")
 
 # Core libraries
 add_subdirectory(${CORE_LIB_DIR}/threadx threadx)
