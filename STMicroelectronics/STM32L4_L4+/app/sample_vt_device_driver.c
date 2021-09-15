@@ -43,7 +43,7 @@ uint16_t vt_gpio_pin_sensor_2 = GPIO_PIN_8;
 /* Variables needed for External ADC Buffer Read */
 uint8_t adc_mcp3204_TxData[3];
 uint8_t adc_mcp3204_RxData[3];
-SPI_HandleTypeDef adc_mcp3204_spi_handle;
+void* adc_mcp3204_spi_handle;
 float* adc_mcp3204_read_buffer_local;
 uint16_t adc_mcp3204_read_buffer_length_local;
 uint16_t adc_mcp3204_read_buffer_datapoints_stored = 0;
@@ -132,12 +132,20 @@ uint16_t vt_adc_single_read(uint16_t adc_id, void* adc_controller, void* adc_cha
 void sample_mcp3208_read_start()
 {
     HAL_GPIO_WritePin(SAMPLE_MCP3204_SLAVE_SELECT_GPIO_PORT, SAMPLE_MCP3204_SLAVE_SELECT_GPIO_PIN, GPIO_PIN_RESET);
-    HAL_SPI_TransmitReceive_IT(&adc_mcp3204_spi_handle, adc_mcp3204_TxData, adc_mcp3204_RxData, 3);
+    if (HAL_SPI_Init((SPI_HandleTypeDef*)adc_mcp3204_spi_handle) != HAL_OK)
+    {
+        // Handle error
+    }
+    HAL_SPI_TransmitReceive_IT((SPI_HandleTypeDef*)adc_mcp3204_spi_handle, adc_mcp3204_TxData, adc_mcp3204_RxData, 3);
 }
 
 void sample_mcp3208_read_stop()
 {
     HAL_GPIO_WritePin(SAMPLE_MCP3204_SLAVE_SELECT_GPIO_PORT, SAMPLE_MCP3204_SLAVE_SELECT_GPIO_PIN, GPIO_PIN_SET);
+    if (HAL_SPI_DeInit((SPI_HandleTypeDef*)adc_mcp3204_spi_handle) != HAL_OK)
+    {
+        // Handle error
+    }
 }
 
 void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef* hspi)
@@ -162,12 +170,22 @@ void HAL_SPI_TxRxCpltCallback(SPI_HandleTypeDef* hspi)
     }
 }
 
+void SPI1_IRQHandler(void)
+{
+    /* USER CODE BEGIN SPI1_IRQn 0 */
+
+    /* USER CODE END SPI1_IRQn 0 */
+    HAL_SPI_IRQHandler((SPI_HandleTypeDef*)adc_mcp3204_spi_handle);
+    /* USER CODE BEGIN SPI1_IRQn 1 */
+
+    /* USER CODE END SPI1_IRQn 1 */
+}
+
 void vt_adc_buffer_read(uint16_t adc_id,
     void* adc_controller,
     void* adc_channel,
     float* adc_read_buffer,
     uint16_t buffer_length,
-
     float desired_sampling_frequency,
     float* set_sampling_frequency,
     void (*vt_adc_buffer_read_conv_half_cplt_callback)(),
@@ -175,8 +193,7 @@ void vt_adc_buffer_read(uint16_t adc_id,
 {
     if (adc_id == SAMPLE_EXTERNAL_ADC_TYPE_ID)
     {
-        SPI_HandleTypeDef* vt_adc_controller           = (SPI_HandleTypeDef*)adc_controller;
-        adc_mcp3204_spi_handle                         = *vt_adc_controller;
+        adc_mcp3204_spi_handle                         = adc_controller;
         adc_mcp3204_read_buffer_half_complete_callback = vt_adc_buffer_read_conv_half_cplt_callback;
         adc_mcp3204_read_buffer_full_complete_callback = vt_adc_buffer_read_conv_cplt_callback;
         adc_mcp3204_read_buffer_local                  = adc_read_buffer;
@@ -184,6 +201,7 @@ void vt_adc_buffer_read(uint16_t adc_id,
         adc_mcp3204_read_buffer_datapoints_stored      = 0;
 
         /* SPI1 parameter configuration*/
+        SPI_HandleTypeDef* vt_adc_controller   = (SPI_HandleTypeDef*)adc_controller;
         vt_adc_controller->Init.Mode           = SPI_MODE_MASTER;
         vt_adc_controller->Init.Direction      = SPI_DIRECTION_2LINES;
         vt_adc_controller->Init.DataSize       = SPI_DATASIZE_8BIT;
@@ -198,7 +216,7 @@ void vt_adc_buffer_read(uint16_t adc_id,
         vt_adc_controller->Init.NSSPMode       = SPI_NSS_PULSE_DISABLE;
 
         uint32_t baudrate_prescaler = 256;
-        if (desired_sampling_frequency)
+        if (desired_sampling_frequency > 1)
         {
             baudrate_prescaler = (uint32_t)(
                 (SystemCoreClock / (desired_sampling_frequency * SAMPLE_MCP3204_SPI_CLOCK_CYCLES_FOR_CONVERSION)) - 1);
@@ -247,17 +265,14 @@ void vt_adc_buffer_read(uint16_t adc_id,
         *set_sampling_frequency = ((float)SystemCoreClock / ((float)(baudrate_prescaler + 1) *
                                                                 (float)SAMPLE_MCP3204_SPI_CLOCK_CYCLES_FOR_CONVERSION));
 
-        if (HAL_SPI_Init(vt_adc_controller) != HAL_OK)
-        {
-            // Handle error
-        }
-
         adc_mcp3204_TxData[0] = 0b110;
         adc_mcp3204_TxData[1] = (*(uint8_t*)adc_channel) << 6;
         adc_mcp3204_TxData[2] = 0b0;
 
         sample_mcp3208_read_stop();
         sample_mcp3208_read_start();
+
+        //printf("MCP3204 read start \r\n");
     }
 }
 

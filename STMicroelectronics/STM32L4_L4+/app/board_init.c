@@ -19,16 +19,19 @@
 
 UART_HandleTypeDef UartHandle;
 ADC_HandleTypeDef hadc1;
-TIM_HandleTypeDef htim7;
 RTC_HandleTypeDef RtcHandle;
 TIM_HandleTypeDef TimCCHandle;
 extern SPI_HandleTypeDef hspi;
 SPI_HandleTypeDef mcp3204;
-
+TIM_HandleTypeDef HTIMx;
 volatile uint32_t ButtonPressed = 0;
 volatile uint32_t SendData      = 0;
-
+uint32_t gu32_ticks;
 static uint32_t t_TIM_CC1_Pulse;
+
+
+#define TIMER  TIM4
+// You can change it to TIM2, TIM3, or whatever.
 
 // 2kHz/0.5 For Sensors Data data@0.5Hz
 #define DEFAULT_TIM_CC1_PULSE 4000
@@ -76,14 +79,15 @@ static void SystemClock_Config(void);
 static void InitTimers(void);
 static void InitRTC(void);
 static void UART_Console_Init(void);
-static void MX_SPI1_Init(void);
+// static void MX_SPI1_Init(void);
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
 void SPI3_IRQHandler(void);
-void SPI1_IRQHandler(void);
+// void SPI1_IRQHandler(void);
 
 static void MX_ADC1_Init(void);
 static void MX_GPIO_Init(void);
+void TimerDelay_Init(void);
 
 void board_init(void)
 {
@@ -119,7 +123,47 @@ void board_init(void)
 
     MX_ADC1_Init();
 
-    MX_SPI1_Init();
+    TimerDelay_Init();
+
+    // MX_SPI1_Init();
+}
+
+void TimerDelay_Init(void)
+{
+    gu32_ticks = (HAL_RCC_GetHCLKFreq() / 1000000);
+ 
+    TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+ 
+    HTIMx.Instance = TIMER;
+    HTIMx.Init.Prescaler = gu32_ticks-1;
+    HTIMx.Init.CounterMode = TIM_COUNTERMODE_UP;
+    HTIMx.Init.Period = 65535;
+    HTIMx.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    HTIMx.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    if (HAL_TIM_Base_Init(&HTIMx) != HAL_OK)
+    {
+      STM32_Error_Handler();
+    }
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&HTIMx, &sClockSourceConfig) != HAL_OK)
+    {
+      STM32_Error_Handler();
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&HTIMx, &sMasterConfig) != HAL_OK)
+    {
+      STM32_Error_Handler();
+    }
+ 
+    HAL_TIM_Base_Start(&HTIMx);
+}
+
+void delay_us(uint16_t au16_us)
+{
+    HTIMx.Instance->CNT = 0;
+    while (HTIMx.Instance->CNT < au16_us);
 }
 
 int hardware_rand(void)
@@ -398,19 +442,19 @@ void SPI3_IRQHandler(void)
     HAL_SPI_IRQHandler(&hspi);
 }
 
-/**
-  * @brief This function handles SPI1 global interrupt.
-  */
-void SPI1_IRQHandler(void)
-{
-  /* USER CODE BEGIN SPI1_IRQn 0 */
+// /**
+//   * @brief This function handles SPI1 global interrupt.
+//   */
+// void SPI1_IRQHandler(void)
+// {
+//   /* USER CODE BEGIN SPI1_IRQn 0 */
 
-  /* USER CODE END SPI1_IRQn 0 */
-  HAL_SPI_IRQHandler(&mcp3204);
-  /* USER CODE BEGIN SPI1_IRQn 1 */
+//   /* USER CODE END SPI1_IRQn 0 */
+//   HAL_SPI_IRQHandler(&mcp3204);
+//   /* USER CODE BEGIN SPI1_IRQn 1 */
 
-  /* USER CODE END SPI1_IRQn 1 */
-}
+//   /* USER CODE END SPI1_IRQn 1 */
+// }
 
 /**
  * @brief ADC1 Initialization Function
@@ -519,42 +563,42 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 }
 
-/**
-  * @brief SPI1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI1_Init(void)
-{
+// /**
+//   * @brief SPI1 Initialization Function
+//   * @param None
+//   * @retval None
+//   */
+// static void MX_SPI1_Init(void)
+// {
 
-  /* USER CODE BEGIN SPI1_Init 0 */
+//   /* USER CODE BEGIN SPI1_Init 0 */
 
-  /* USER CODE END SPI1_Init 0 */
+//   /* USER CODE END SPI1_Init 0 */
 
-  /* USER CODE BEGIN SPI1_Init 1 */
+//   /* USER CODE BEGIN SPI1_Init 1 */
 
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  mcp3204.Instance = SPI1;
-  mcp3204.Init.Mode = SPI_MODE_MASTER;
-  mcp3204.Init.Direction = SPI_DIRECTION_2LINES;
-  mcp3204.Init.DataSize = SPI_DATASIZE_8BIT;
-  mcp3204.Init.CLKPolarity = SPI_POLARITY_LOW;
-  mcp3204.Init.CLKPhase = SPI_PHASE_1EDGE;
-  mcp3204.Init.NSS = SPI_NSS_SOFT;
-  mcp3204.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
-  mcp3204.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  mcp3204.Init.TIMode = SPI_TIMODE_DISABLE;
-  mcp3204.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  mcp3204.Init.CRCPolynomial = 7;
-  mcp3204.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
-  mcp3204.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
-  if (HAL_SPI_Init(&mcp3204) != HAL_OK)
-  {
-    // Handle error
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
+//   /* USER CODE END SPI1_Init 1 */
+//   /* SPI1 parameter configuration*/
+//   mcp3204.Instance = SPI1;
+//   mcp3204.Init.Mode = SPI_MODE_MASTER;
+//   mcp3204.Init.Direction = SPI_DIRECTION_2LINES;
+//   mcp3204.Init.DataSize = SPI_DATASIZE_8BIT;
+//   mcp3204.Init.CLKPolarity = SPI_POLARITY_LOW;
+//   mcp3204.Init.CLKPhase = SPI_PHASE_1EDGE;
+//   mcp3204.Init.NSS = SPI_NSS_SOFT;
+//   mcp3204.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_128;
+//   mcp3204.Init.FirstBit = SPI_FIRSTBIT_MSB;
+//   mcp3204.Init.TIMode = SPI_TIMODE_DISABLE;
+//   mcp3204.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+//   mcp3204.Init.CRCPolynomial = 7;
+//   mcp3204.Init.CRCLength = SPI_CRC_LENGTH_DATASIZE;
+//   mcp3204.Init.NSSPMode = SPI_NSS_PULSE_DISABLE;
+//   if (HAL_SPI_Init(&mcp3204) != HAL_OK)
+//   {
+//     // Handle error
+//   }
+//   /* USER CODE BEGIN SPI1_Init 2 */
 
-  /* USER CODE END SPI1_Init 2 */
+//   /* USER CODE END SPI1_Init 2 */
 
-}
+// }
