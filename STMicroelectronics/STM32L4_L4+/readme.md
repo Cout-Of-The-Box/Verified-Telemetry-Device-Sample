@@ -32,6 +32,12 @@ You will complete the following tasks:
     > * USB 2.0 A male to Micro USB male cable
     > * 2 * [Soil Moisture Sensor](https://www.dfrobot.com/product-1385.html)
 
+* Supplementary hardware for CurrentSense 
+
+    > * CurrentSense PCB
+    > * DS18B20 Temperature Sensor 
+    
+
 ## Prepare the development environment
 
 To set up your development environment, first you clone a GitHub repo that contains all the assets you need for the tutorial. Then you install a set of programming tools.
@@ -147,7 +153,7 @@ Confirm that you have the copied the following values from the JSON output to us
 
 ## Connect Sensors for Verified Telemetry
 This sample showcases Verified Telemetry feature for telemetry generated from two external sensors that are connected to STM DevKit
-* Connect Sensors        
+* Sensor connection for Fallcurve.        
 
 
     Refer to the table and image below to connect the two [Soil Moisture](https://www.dfrobot.com/product-1385.html) sensors.
@@ -163,6 +169,32 @@ This sample showcases Verified Telemetry feature for telemetry generated from tw
 
 
     ![B-L475E-IOT01A Sensor Connections](media/B-L475E-IOT01A_sensor_connections.png)
+
+* Sensor connection for Fallcurve and CurrentSense    
+
+    * Connect the STM Devkit Baseboard PCB to the Devkit like a Shield.
+    * Connect the Generic CurrentSense Module to the STM Devkit Baseboard PCB.
+    * Make the connections with the STM Devkit Baseboard PCB according to the schematic given below.
+
+
+    Refer to the table and image below to connect the two Soil Moisture sensors and two DS18B20 Temperature Sensor.
+
+    | Sensor Name   | Sensor Pin           | MCU Pin | STM Devkit Baseboard PCB Pin |
+    |---------------|----------------------|-----------------------------|------------|
+    | Soil Moisture 1 | Analog Out           | PC0                           | A5        |
+    | Soil Moisture 1 | VCC                  | PB9                          | D14        |
+    | Soil Moisture 1 | GND                  | GND                          | GND        |
+    | Soil Moisture 2       | Analog Out  | PC1                           | A4        |
+    | Soil Moisture 2       | VCC                  | PB8                           | D15       |
+    | Soil Moisture 2       | GND                  | GND                           | GND       |
+    | Temperature Sensor 1       | Digital Out  | PA15                           | D9        |
+    | Temperature Sensor 1       | VCC                  | -                           | 3.3v on JP4       |
+    | Temperature Sensor 1       | GND                  | -                           | SENS1GND on JP4      |
+    | Temperature Sensor 2       | Digital Out  | PB2                           | D8        |
+    | Temperature Sensor 2       | VCC                  | -                           | 3.3v on JP4       |
+    | Temperature Sensor 2       | GND                  | -                           | SENS2GND on JP4      |
+
+    ![B-L475E-IOT01A Sensor Connections](media/STM_Devkit_Baseboard_PCB_Connections.png)
 
 ## Prepare and Flash Firmware
 
