@@ -82,15 +82,19 @@ A few key concepts of VT are introduced and discussed below:
     | **Interface** | Interface | `Sample Device` | Example standard Device Model for getting started with Verified Telemetry/Dependable IoT Guide |
     | **Properties (read-only)** | Property | `ledState` | The current state of the LED |
     | **Commands** | Command | `setLedState` | Enable or disable the LED |
-    | **Telemetry** | Telemetry | `soilMoistureExternal1`, `soilMoistureExternal2`, `temperature`, `pressure`, `humidityPercentage`, `acceleration`, `magnetic` | Telemetries originating from various onboard and external sensors |
+    | **Telemetry** | Telemetry | `soilMoistureExternal1`, `soilMoistureExternal2`,`temperatureExternal1`,`temperatureExternal2`, `temperature`, `pressure`, `humidityPercentage`, `acceleration`, `magnetic` | Telemetries originating from various onboard and external sensors |
 * The following telemetries support Verified Telemetry:
     1. soilMoistureExternal1
     1. soilMoistureExternal2
+    1. temperatureExternal1
+    1. temperatureExternal2
 * For each of these telemetries there exists a component which implements the [Verified Telemetry Information](./core/model/vTInfo.json) Interface
     | Telemetry | Component Name | 
     |---|---|
     | soilMoistureExternal1 | vTsoilMoistureExternal1 | 
     | soilMoistureExternal2 | vTsoilMoistureExternal2 | 
+    | temperatureExternal1 | vTtemperatureExternal1 | 
+    | temperatureExternal2 | vTtemperatureExternal2 | 
 * The 'telemetryStatus' property present inside each of these components represents whether the respective telemetry is verified or has a fault.
 * The 'vTDevice' component implements the [Verified Telemetry Device Information](./core/model/vTDevice.json) Interface - 
     | Type | Name | Description |
