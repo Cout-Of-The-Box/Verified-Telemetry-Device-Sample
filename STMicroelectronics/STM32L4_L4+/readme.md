@@ -30,9 +30,11 @@ You will complete the following tasks:
     >   * [B-L4S5I-IOT01A](https://www.st.com/en/evaluation-tools/b-l4s5i-iot01a.html)
     > * Wi-Fi 2.4 GHz
     > * USB 2.0 A male to Micro USB male cable
+
+* Supplementary hardware for Analog Sensor Sample.
     > * 2 * [Soil Moisture Sensor](https://www.dfrobot.com/product-1385.html)
 
-* Supplementary hardware for CurrentSense 
+* Supplementary hardware for Digital Sensor Sample.
 
     > * CurrentSense PCB
     > * DS18B20 Temperature Sensor 
@@ -153,7 +155,7 @@ Confirm that you have the copied the following values from the JSON output to us
 
 ## Connect Sensors for Verified Telemetry
 This sample showcases Verified Telemetry feature for telemetry generated from two external sensors that are connected to STM DevKit
-* Sensor connection for Fallcurve.        
+* Sensor connection for Analog Sensors.        
 
 
     Refer to the table and image below to connect the two [Soil Moisture](https://www.dfrobot.com/product-1385.html) sensors.
@@ -170,7 +172,7 @@ This sample showcases Verified Telemetry feature for telemetry generated from tw
 
     ![B-L475E-IOT01A Sensor Connections](media/B-L475E-IOT01A_sensor_connections.png)
 
-* Sensor connection for Fallcurve and CurrentSense    
+* Sensor connection for Analog and Digital Sensors.    
 
     * Connect the STM Devkit Baseboard PCB to the Devkit like a Shield.
     * Connect the Generic CurrentSense Module to the STM Devkit Baseboard PCB.
