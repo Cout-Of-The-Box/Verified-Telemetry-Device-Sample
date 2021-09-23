@@ -21,6 +21,8 @@ project(stm32l4_azure_iot C ASM)
 # Disable common networking component, STM has it's own
 set(DISABLE_COMMON_NETWORK true)
 
+set(VT_MIDDLEWARE_RTOS "AZURE_RTOS" CACHE STRING "Set VT Middleware to FreeRTOS")
+
 add_subdirectory(${CORE_SRC_DIR} core_src)
 add_subdirectory(lib)
 add_subdirectory(app)
