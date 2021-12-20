@@ -195,7 +195,7 @@ To connect the STM DevKit to Azure, you'll modify a configuration file for Wi-Fi
 1. Open the following file in a text editor:
     > *Verified-Telemetry-Device-Sample/core/lib/netxduo/addons/azure_iot/nx_azure_iot_pnp_client.h*
 
-1. Change the following value in the above file according to the number of Components in your project.
+1. Change the following value in the above file according to the number of "IoT Plug and Play components" in your project.
 
     For this sample, change the value - `#define NX_AZURE_IOT_PNP_CLIENT_MAX_PNP_COMPONENT_LIST      (4)`, TO
         
