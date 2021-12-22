@@ -30,7 +30,7 @@ You will complete the following tasks:
     >   * [B-L4S5I-IOT01A](https://www.st.com/en/evaluation-tools/b-l4s5i-iot01a.html)
     > * Wi-Fi 2.4 GHz
     > * USB 2.0 A male to Micro USB male cable
-    > * 2 * [Soil Moisture Sensor](https://www.dfrobot.com/product-1385.html)
+    > * 1 * PM2012 Sensor
 
 ## Prepare the development environment
 
