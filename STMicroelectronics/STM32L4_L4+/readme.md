@@ -41,8 +41,12 @@ To set up your development environment, first you clone a GitHub repo that conta
 Clone the following repo to download all sample device code, setup scripts, and offline versions of the documentation.
 To clone the repo, run the following command:
 
+
 ```shell
-git clone --recursive https://github.com/Azure/Verified-Telemetry-Device-Sample.git
+git clone https://github.com/Azure/Verified-Telemetry-Device-Sample.git
+cd Verified-Telemetry-Device-Sample
+git checkout feature/currentsense_sample1
+git submodule update --init --recursive 
 ```
 
 ### Install the tools
