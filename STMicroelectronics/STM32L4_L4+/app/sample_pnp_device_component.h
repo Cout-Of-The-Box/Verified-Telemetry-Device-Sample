@@ -78,6 +78,9 @@ extern "C"
     UINT sample_pnp_device_led_state_property(
         SAMPLE_PNP_DEVICE_COMPONENT* handle, NX_AZURE_IOT_PNP_CLIENT* iotpnp_client_ptr);
 
+    UINT CS_read_process(VT_UINT iterx,SAMPLE_PNP_DEVICE_COMPONENT* handle);
+
+
 #ifdef __cplusplus
 }
 #endif

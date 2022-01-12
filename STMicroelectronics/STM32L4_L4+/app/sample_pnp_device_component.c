@@ -48,6 +48,8 @@ uint8_t UART4_rxBuffer[UART_BUFFER_LENGTH];
 //int pm_status;
 //float val;
 
+extern bool CS_read_process_flag;
+
 
 
 static void set_led_state_action(bool level)
@@ -621,6 +623,65 @@ UINT sample_pnp_device_init(SAMPLE_PNP_DEVICE_COMPONENT* handle,
     return (NX_AZURE_IOT_SUCCESS);
 }
 
+UINT CS_read_process(VT_UINT iterx,SAMPLE_PNP_DEVICE_COMPONENT* handle)
+{
+    if (handle == NX_NULL)
+    {
+        return (NX_NOT_SUCCESSFUL);
+    }
+
+     printf("******* CS PART *******\n");
+
+    //for (int i=0;i<5;i++){
+
+    //sps30_start_measurement();
+    //hpma_start_measurement();
+    //co2_start_measurement();
+
+    //for (int i=0;i<5;i++){
+
+
+    nx_vt_signature_read(handle->verified_telemetry_DB,
+        (UCHAR*)telemetry_name_temperatureExternal1Raw,
+        sizeof(telemetry_name_temperatureExternal1Raw) - 1);
+    
+
+    // int i=0;
+    // while(i<1000000){
+    //     i++;
+    // }
+    
+    //float temperatureExternal1 = ds18b20_temperature_read(DS18B20_1_PORT, DS18B20_1_PIN);
+    //float pms_extrernal1= (float) getpmdata();
+    //printf("%.2f",pms_extrernal1);
+
+    // int i=0;
+    // while(i<100000){
+    //     i++;
+    // }
+    //co2_read_measurement();
+
+    //sps30_read_measurement();
+
+    //float temperatureExternal1 = ds18b20_temperature_read(DS18B20_1_PORT, DS18B20_1_PIN);
+    //float pms_extrernal1= (float) getpmdata();
+    //printf("%.2f",pms_extrernal1);
+
+
+
+
+    nx_vt_signature_process(handle->verified_telemetry_DB,
+        (UCHAR*)telemetry_name_temperatureExternal1Raw,
+        sizeof(telemetry_name_temperatureExternal1Raw) - 1);
+      //  }
+
+
+    printf("\n******* CS PART END*******\n");
+    
+    return (NX_AZURE_IOT_SUCCESS);
+
+}
+
 UINT get_sensor_data(VT_UINT iterx,SAMPLE_PNP_DEVICE_COMPONENT* handle)
 {
     if (handle == NX_NULL)
@@ -635,7 +696,7 @@ UINT get_sensor_data(VT_UINT iterx,SAMPLE_PNP_DEVICE_COMPONENT* handle)
     UINT soilMoisture1ADCData = adc_read(&hadc1, ADC_CHANNEL_1);
     UINT soilMoisture2ADCData = adc_read(&hadc1, ADC_CHANNEL_2);
     
-    
+/*
     printf("******* CS PART *******\n");
 
     //for (int i=0;i<5;i++){
@@ -684,7 +745,7 @@ UINT get_sensor_data(VT_UINT iterx,SAMPLE_PNP_DEVICE_COMPONENT* handle)
 
     printf("\n******* CS PART END*******\n");
     
-
+*/
 
 
     float temperature = BSP_TSENSOR_ReadTemp();
@@ -765,6 +826,22 @@ UINT sample_pnp_device_telemetry_send(VT_UINT iterx,SAMPLE_PNP_DEVICE_COMPONENT*
     }
 
     /* Get sensor data. */
+    //what we can do is that we can move this get_sensor_data fucntion to the new thread and put a 10 sec delay or variable delay on it.
+    //this would give us a consistent datapoints with previous status.
+    //the data would like like ---->     -   -   -   -   -   -   -   -   -                 -   -   -   -   -   -   -   -   -
+    //                                                                            ^ being the 15 sec delay for CS evaluation
+
+    //put a semaphone accross CS_read_process(iterx,handle); 
+    //ONLY WHNE THE SEMAPHORE SIGNALS THIS FUCNTION WILL RUN 
+    //OTHERWISE ONLY SEND TLEMETRY
+    //THAT SEMAPHORE IS CONTROLED BY THE 5000 TASK
+
+    if(CS_read_process_flag==true)
+        {
+            CS_read_process(iterx,handle);
+            CS_read_process_flag=false;
+        }
+
     if ((status = get_sensor_data(iterx,handle)))
     {
         printf("Fetching Sensor data failed!: error code = 0x%08x\r\n", status);

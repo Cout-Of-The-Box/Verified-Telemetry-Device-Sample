@@ -19,6 +19,14 @@
       "description": "True enables Verified Telemetry functionalities.",
       "schema": "boolean",
       "writable": true
+    },
+    {
+      "@type": "Property",
+      "name": "sensorEvaluationInterval", 
+      "displayName" : "Sensor Evaluation Interval",
+      "description": "Represents interval after which all sensors are evaluated",
+      "schema": "integer",
+      "writable": true
     } 
   ]
 }

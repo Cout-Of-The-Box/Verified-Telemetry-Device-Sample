@@ -6,12 +6,24 @@
 #include "nx_api.h"
 #include "nx_azure_iot_pnp_client.h"
 #include "nx_azure_iot_provisioning_client.h"
+#include "nx_verified_telemetry.h"
 
 #include "azure_config.h"
 #include "azure_iot_cert.h"
 #include "azure_iot_ciphersuites.h"
 
 #include "board_init.h"
+#include "vt_debug.h"
+
+//Multi-Threading Defines
+#define TELEMETRY_THREAD_STACK_SIZE 1024
+#define TELEMETRY_THREAD_PRIORITY 2
+#define TELEMETRY_THREAD_PREEMPT_THRESH 2
+TX_THREAD telemetry_thread;
+CHAR telemetry_thread_stack[TELEMETRY_THREAD_STACK_SIZE];
+bool CS_read_process_flag=true;
+bool FC_read_process_flag=true;
+int32_t sensor_evaluation_interval_value=50;
 
 /* Device */
 #include "sample_pnp_device_component.h"
@@ -71,6 +83,13 @@
 
 #define SAMPLE_PNP_MODEL_ID    "dtmi:azure:verifiedtelemetry:sample:GSG;1"
 #define SAMPLE_PNP_DPS_PAYLOAD "{\"modelId\":\"" SAMPLE_PNP_MODEL_ID "\"}"
+
+
+//sensor_evaluation_interval vars and defines
+#define PROPERTY_NAME_MAX_LENGTH 50
+static const CHAR sensor_evaluation_interval[] = "sensorEvaluationInterval";
+static const CHAR temp_response_description_success[] = "success";
+static const CHAR temp_response_description_failed[]  = "failed";
 
 /* Define Sample context.  */
 typedef struct SAMPLE_CONTEXT_STRUCT
@@ -580,6 +599,116 @@ static VOID sample_command_action(SAMPLE_CONTEXT* sample_context_ptr)
     nx_azure_iot_json_writer_deinit(&json_writer);
 }
 
+
+
+static VOID send_reported_property(NX_AZURE_IOT_PNP_CLIENT* iotpnp_client_ptr,
+    const UCHAR* component_name_ptr,
+    UINT component_name_length,
+    int32_t interval,
+    INT status_code,
+    UINT version,
+    const CHAR* description,
+    UCHAR* property_name,
+    UINT property_name_length)
+{
+    UINT response_status;
+    NX_AZURE_IOT_JSON_WRITER json_writer;
+
+    if (nx_azure_iot_pnp_client_reported_properties_create(iotpnp_client_ptr, &json_writer, NX_WAIT_FOREVER))
+    {
+        VTLogError("Failed to build reported response\r\n");
+        return;
+    }
+
+    if (nx_azure_iot_pnp_client_reported_property_component_begin(
+            iotpnp_client_ptr, &json_writer, component_name_ptr, component_name_length) ||
+        nx_azure_iot_pnp_client_reported_property_status_begin(iotpnp_client_ptr,
+            &json_writer,
+            (UCHAR*)property_name,
+            property_name_length,
+            status_code,
+            version,
+            (const UCHAR*)description,
+            strlen(description)) ||
+        nx_azure_iot_json_writer_append_int32(&json_writer, interval) ||
+        nx_azure_iot_pnp_client_reported_property_status_end(iotpnp_client_ptr, &json_writer) ||
+        nx_azure_iot_pnp_client_reported_property_component_end(iotpnp_client_ptr, &json_writer))
+    {
+
+        VTLogError("Failed to build reported response\r\n");
+    }
+    else
+    {
+        if (nx_azure_iot_pnp_client_reported_properties_send(
+                iotpnp_client_ptr, &json_writer, NX_NULL, &response_status, NX_NULL, (5 * NX_IP_PERIODIC_RATE)))
+        {
+            VTLogError("Failed to send reported response\r\n");
+        }
+    }
+    nx_azure_iot_json_writer_deinit(&json_writer);
+}
+
+
+UINT nx_vt_sensor_evaluate_interval_property_process(
+    NX_AZURE_IOT_PNP_CLIENT* iotpnp_client_ptr,
+    const UCHAR* component_name_ptr,
+    UINT component_name_length,
+    NX_AZURE_IOT_JSON_READER* name_value_reader_ptr,
+    UINT version)
+{
+    int32_t parsed_value = 0;
+    INT status_code;
+    const CHAR* description;
+    CHAR property_name[PROPERTY_NAME_MAX_LENGTH];
+    UINT property_name_length = 0;
+    //check here with the respective component
+    //for example here the component is vTdevivce hence compare verified_telemetry_DB->component_name_length
+    //we can iterate from component and set values in that componont.
+    //or we can just recive the value and se which component it is 
+    //ad set vlaues recieved according to that.
+    if (verified_telemetry_DB->component_name_length != component_name_length ||
+        strncmp((CHAR*)verified_telemetry_DB->component_name_ptr, (CHAR*)component_name_ptr, component_name_length) != 0)
+    {
+        return (NX_NOT_SUCCESSFUL);
+    }
+
+    // Get Property Name
+    nx_azure_iot_json_reader_token_string_get(
+        name_value_reader_ptr, (UCHAR*)property_name, sizeof(property_name), &property_name_length);
+
+    // Property 1: Sensor Evaluation Interval
+    if (nx_azure_iot_json_reader_token_is_text_equal(name_value_reader_ptr,
+            (UCHAR*)sensor_evaluation_interval,
+            sizeof(sensor_evaluation_interval) - 1) == NX_TRUE)
+    {
+        if (nx_azure_iot_json_reader_next_token(name_value_reader_ptr) ||
+            nx_azure_iot_json_reader_token_int32_get(name_value_reader_ptr, &parsed_value))
+        {
+            status_code = 401;
+            description = temp_response_description_failed;
+        }
+        else
+        {
+            status_code = 200;
+            description = temp_response_description_success;
+            sensor_evaluation_interval_value=parsed_value;
+            VTLogInfo("Received Enable Verified Telemetry Twin update with value %d \r\n", (int)parsed_value);
+        }
+        send_reported_property(iotpnp_client_ptr,
+            component_name_ptr,
+            component_name_length,
+            parsed_value,
+            status_code,
+            version,
+            description,
+            (UCHAR*)property_name,
+            property_name_length);
+        return NX_AZURE_IOT_SUCCESS;
+    }
+
+    return NX_NOT_SUCCESSFUL;
+}
+
 static VOID sample_desired_properties_parse(NX_AZURE_IOT_PNP_CLIENT* pnp_client_ptr,
     NX_AZURE_IOT_JSON_READER* json_reader_ptr,
     UINT message_type,
@@ -595,6 +724,12 @@ static VOID sample_desired_properties_parse(NX_AZURE_IOT_PNP_CLIENT* pnp_client_
     {
         if (nx_vt_process_property_update(
                 verified_telemetry_DB, pnp_client_ptr, component_ptr, component_len, &name_value_reader, version) ==
+            NX_AZURE_IOT_SUCCESS)
+        {
+            printf("Verified Telemetry Property updated\r\n\n");
+        }
+        else if(nx_vt_sensor_evaluate_interval_property_process(
+                pnp_client_ptr, component_ptr, component_len, &name_value_reader, version) ==
             NX_AZURE_IOT_SUCCESS)
         {
             printf("Verified Telemetry Property updated\r\n\n");
@@ -905,7 +1040,12 @@ static VOID sample_event_loop(SAMPLE_CONTEXT* context,VT_UINT iterx)
 
         if (app_events & SAMPLE_TELEMETRY_SEND_EVENT)
         {
+
+        if(FC_read_process_flag==true)
+            {
             nx_vt_compute_evaluate_fingerprint_all_sensors(verified_telemetry_DB);
+            FC_read_process_flag=false;
+            }
             sample_telemetry_action(context,iterx);
             
         }
@@ -970,6 +1110,25 @@ static UINT sample_components_init()
     return (status);
 }
 
+void telemetry_thread_entry(ULONG thread_input)
+{
+    while(1)
+    {
+    printf("inside telemetry_thread_entry \n");
+
+    CS_read_process_flag=true;
+    FC_read_process_flag=true;
+    //CS_read_process(0,&sample_device);
+
+    printf("exe sensor_read_process \n");
+
+    tx_thread_sleep(sensor_evaluation_interval_value*100);//        =10 sec
+
+    printf("out of sleep \n");
+
+    }
+}
+
 VOID sample_entry(
     NX_IP* ip_ptr, NX_PACKET_POOL* pool_ptr, NX_DNS* dns_ptr, UINT (*unix_time_callback)(ULONG* unix_time))
 {
@@ -996,6 +1155,23 @@ VOID sample_entry(
         printf("Failed on nx_azure_iot_create!: error code = 0x%08x\r\n", status);
         return;
     }
+
+    if(tx_thread_create(&telemetry_thread,
+                        "telemetry_thread",
+                        telemetry_thread_entry,
+                        0,
+                        telemetry_thread_stack,
+                        TELEMETRY_THREAD_STACK_SIZE,
+                        TELEMETRY_THREAD_PRIORITY,
+                        TELEMETRY_THREAD_PREEMPT_THRESH,
+                        TX_NO_TIME_SLICE,
+                        TX_AUTO_START))
+
+    {
+        printf("Failed on tx_thread_create!");
+        return;
+    }
+
 
     /* Initialize CA certificate. */
     if ((status = nx_secure_x509_certificate_initialize(&root_ca_cert,
